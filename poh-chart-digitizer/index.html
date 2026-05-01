@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>POH Chart Digitizer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="sidebar">
+  <h2>POH Chart Digitizer</h2>
+
+  <div class="step active" id="step-load">
+    <h3>1. Load Chart Image</h3>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+
+  <div class="step" id="step-cal-right">
+    <h3>2. Calibrate Right Side</h3>
+    <p>Click X points (weight axis), then Y points (distance axis). Y points define the shared pixel heights for both sides.</p>
+    <button class="secondary" onclick="startCalibration('right')">Start Calibration</button>
+    <label>X points (kg):</label>
+    <div id="r-cal-x-pts"></div>
+    <label>Y points (m):</label>
+    <div id="r-cal-y-pts"></div>
+    <p id="cal-right-status" style="color:#0f0;"></p>
+  </div>
+
+  <div class="step" id="step-cal-left">
+    <h3>3. Calibrate Left Side</h3>
+    <p>Click X points (temperature axis) on the chart. No Y calibration needed — the crossover uses pixel heights directly from the right side.</p>
+    <button class="secondary" onclick="startCalibration('left')">Start Calibration</button>
+    <label>X points (°C):</label>
+    <div id="l-cal-x-pts"></div>
+    <p id="cal-left-status" style="color:#0f0;"></p>
+  </div>
+
+  <div class="step" id="step-trace-left">
+    <h3>4. Trace Altitude Lines — Left Side</h3>
+    <p>Select an altitude, click along its line from left to right.</p>
+    <div id="alt-list-config"></div>
+    <div class="row">
+      <button class="secondary" id="btn-trace-left" onclick="startTracing('left')">Trace</button>
+      <button class="secondary" id="btn-undo-left" onclick="undoLastPoint()" disabled>Undo</button>
+      <button class="secondary" id="btn-done-left" onclick="finishLine()" disabled>Done</button>
+    </div>
+    <div class="line-list" id="left-lines"></div>
+  </div>
+
+  <div class="step" id="step-trace-right">
+    <h3>5. Trace Reference Curves — Right Side</h3>
+    <p>Trace the guide curves. These define the interpolation field — they are not paired with altitudes.</p>
+    <div id="curve-list-config"></div>
+    <div class="row">
+      <button class="secondary" id="btn-trace-right" onclick="startTracing('right')">Trace</button>
+      <button class="secondary" id="btn-undo-right" onclick="undoLastPoint()" disabled>Undo</button>
+      <button class="secondary" id="btn-done-right" onclick="finishLine()" disabled>Done</button>
+    </div>
+    <div class="line-list" id="right-lines"></div>
+  </div>
+
+  <div class="step" id="step-export">
+    <h3>6. Compute &amp; Export</h3>
+    <p>For each temp+altitude, crosses to the right side and reads distance at each weight.</p>
+    <div class="row"><label>Temp from (°C):</label><input type="number" id="temp-from" value="-20"><label>to:</label><input type="number" id="temp-to" value="40"><label>step:</label><input type="number" id="temp-step" value="5"></div>
+    <div class="row"><label>Weights (kg, comma-sep):</label><input type="text" id="weights" value="800,900,1000"></div>
+    <div class="row"><label>Chart type:</label>
+      <select id="chart-type"><option value="takeoff">Takeoff</option><option value="landing">Landing</option></select>
+    </div>
+    <div class="row"><label>Distance type:</label>
+      <select id="dist-type"><option value="groundroll">Ground Roll</option><option value="over50">Over 50ft/15m</option></select>
+    </div>
+    <button onclick="computeGrid()">Compute Grid</button>
+    <button class="secondary" onclick="exportCSV()">Export CSV</button>
+    <button class="secondary" onclick="saveProject()">Save Project</button>
+    <button class="secondary" style="margin-top:4px" onclick="document.getElementById('loadProject').click()">Load Project</button>
+    <input type="file" id="loadProject" accept=".json" style="display:none" onchange="loadProject(event)">
+    <textarea id="output" readonly></textarea>
+  </div>
+</div>
+
+<div id="resize-handle"></div>
+
+<div id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+</div>
+<div id="info">Load an image to begin.</div>
+
+<script src="calibration.js"></script>
+<script src="tracing.js"></script>
+<script src="compute.js"></script>
+<script src="project.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
