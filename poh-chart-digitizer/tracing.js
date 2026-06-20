@@ -39,7 +39,6 @@ function updateAlt(idx, val) {
   const oldVal = altConfigs[idx];
   const newVal = parseFloat(val);
   altConfigs[idx] = newVal;
-  // Update any existing traced line
   const line = lines.find(l => l.side === 'left' && l.value === oldVal);
   if (line) { line.value = newVal; line.label = newVal + ' ft'; updateLineList(); redraw(); }
 }
@@ -49,50 +48,56 @@ function getSelectedAltIdx() {
   return radio ? parseInt(radio.value) : 0;
 }
 
-// ── Dynamic curve config for right side ──
-let curveConfigs = [
-  { id: 1, name: 'Curve 1' },
-  { id: 2, name: 'Curve 2' },
-  { id: 3, name: 'Curve 3' },
-  { id: 4, name: 'Curve 4' },
-];
-let nextCurveId = 5;
+// ── Generic curve config for right-side sections (right, headwind, obstacle) ──
+// Each section has its own config array and next ID counter.
 
-function renderCurveConfig() {
-  const el = document.getElementById('curve-list-config');
-  el.innerHTML = curveConfigs.map((c, i) =>
+const curveSections = {
+  right:    { configs: [{ id: 1, name: 'Curve 1' }, { id: 2, name: 'Curve 2' }, { id: 3, name: 'Curve 3' }, { id: 4, name: 'Curve 4' }], nextId: 5 },
+  headwind: { configs: [{ id: 1, name: 'Curve 1' }, { id: 2, name: 'Curve 2' }, { id: 3, name: 'Curve 3' }], nextId: 4 },
+  obstacle: { configs: [{ id: 1, name: 'Curve 1' }, { id: 2, name: 'Curve 2' }, { id: 3, name: 'Curve 3' }], nextId: 4 },
+};
+
+function renderCurveConfig(section) {
+  const sec = curveSections[section];
+  const el = document.getElementById(`${section}-curve-config`);
+  if (!el) return;
+  el.innerHTML = sec.configs.map((c, i) =>
     `<div class="curve-cfg-row">
-      <input type="radio" name="curve-sel" value="${c.id}" ${i === 0 ? 'checked' : ''} style="width:auto;flex:none">
-      <input type="text" value="${c.name}" onchange="renameCurve(${i},this.value)" placeholder="Curve ${c.id}">
-      ${curveConfigs.length > 1 ? `<button class="cal-pt-remove" onclick="removeCurve(${i})">✕</button>` : ''}
+      <input type="radio" name="${section}-curve-sel" value="${c.id}" ${i === 0 ? 'checked' : ''} style="width:auto;flex:none">
+      <input type="text" value="${c.name}" onchange="renameCurve('${section}',${i},this.value)" placeholder="Curve ${c.id}">
+      ${sec.configs.length > 1 ? `<button class="cal-pt-remove" onclick="removeCurve('${section}',${i})">✕</button>` : ''}
     </div>`
-  ).join('') + `<button class="secondary cal-add-btn" onclick="addCurve()">+ Add Curve</button>`;
+  ).join('') + `<button class="secondary cal-add-btn" onclick="addCurve('${section}')">+ Add Curve</button>`;
 }
 
-function addCurve() {
-  curveConfigs.push({ id: nextCurveId, name: 'Curve ' + nextCurveId });
-  nextCurveId++;
-  renderCurveConfig();
+function addCurve(section) {
+  const sec = curveSections[section];
+  sec.configs.push({ id: sec.nextId, name: 'Curve ' + sec.nextId });
+  sec.nextId++;
+  renderCurveConfig(section);
 }
 
-function removeCurve(idx) {
-  if (curveConfigs.length <= 1) return;
-  const removed = curveConfigs.splice(idx, 1)[0];
-  lines = lines.filter(l => !(l.side === 'right' && l.value === removed.id));
-  renderCurveConfig();
+function removeCurve(section, idx) {
+  const sec = curveSections[section];
+  if (sec.configs.length <= 1) return;
+  const removed = sec.configs.splice(idx, 1)[0];
+  lines = lines.filter(l => !(l.side === section && l.value === removed.id));
+  renderCurveConfig(section);
   updateLineList();
   redraw();
 }
 
-function renameCurve(idx, name) {
-  curveConfigs[idx].name = name;
-  const line = lines.find(l => l.side === 'right' && l.value === curveConfigs[idx].id);
+function renameCurve(section, idx, name) {
+  const sec = curveSections[section];
+  sec.configs[idx].name = name;
+  const line = lines.find(l => l.side === section && l.value === sec.configs[idx].id);
   if (line) { line.label = name; updateLineList(); redraw(); }
 }
 
-function getSelectedCurveId() {
-  const radio = document.querySelector('input[name="curve-sel"]:checked');
-  return radio ? parseInt(radio.value) : curveConfigs[0]?.id;
+function getSelectedCurveId(section) {
+  const radio = document.querySelector(`input[name="${section}-curve-sel"]:checked`);
+  const sec = curveSections[section];
+  return radio ? parseInt(radio.value) : sec.configs[0]?.id;
 }
 
 // ── Tracing ──
@@ -101,6 +106,7 @@ function setTracingButtons(side, active) {
   const traceBtn = document.getElementById('btn-trace-' + side);
   const doneBtn = document.getElementById('btn-done-' + side);
   const undoBtn = document.getElementById('btn-undo-' + side);
+  if (!traceBtn) return;
   if (active) {
     traceBtn.classList.add('btn-tracing');
     traceBtn.disabled = true;
@@ -129,10 +135,12 @@ function startTracing(side) {
     label = value + ' ft';
     colorIdx = idx;
   } else {
-    value = getSelectedCurveId();
-    const cfg = curveConfigs.find(c => c.id === value);
+    // right, headwind, or obstacle
+    value = getSelectedCurveId(side);
+    const sec = curveSections[side];
+    const cfg = sec.configs.find(c => c.id === value);
     label = cfg ? cfg.name : 'Curve ' + value;
-    colorIdx = curveConfigs.findIndex(c => c.id === value);
+    colorIdx = sec.configs.findIndex(c => c.id === value);
   }
   currentLine = { side, label, value, points: [], color: COLORS[colorIdx >= 0 ? colorIdx % COLORS.length : 0] };
   setInfo(`Tracing "${currentLine.label}" — click points along the line. Click "Done" when finished.`);
@@ -158,7 +166,6 @@ function finishLine() {
   if (!currentLine) return;
   const side = currentLine.side;
   if (currentLine.points.length < 2) {
-    // Cancel trace
     currentLine = null;
     setMode('idle');
     setTracingButtons(side, false);
@@ -182,9 +189,13 @@ function deleteLine(idx) {
   redraw();
 }
 
+// All sections that show traced lines
+const LINE_LIST_SECTIONS = ['left', 'right', 'headwind', 'obstacle'];
+
 function updateLineList() {
-  for (const side of ['left', 'right']) {
+  for (const side of LINE_LIST_SECTIONS) {
     const el = document.getElementById(side + '-lines');
+    if (!el) continue;
     const sideLines = lines.filter(l => l.side === side);
     el.innerHTML = sideLines.map(l => {
       const gi = lines.indexOf(l);
@@ -223,5 +234,5 @@ function drawLine(line) {
 
 function initTracingUI() {
   renderAltConfig();
-  renderCurveConfig();
+  for (const section of ['right', 'headwind', 'obstacle']) renderCurveConfig(section);
 }

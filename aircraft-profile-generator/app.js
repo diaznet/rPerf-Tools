@@ -1,9 +1,9 @@
 const BASE_KEY_COLS = ['weightKg', 'pressureAltitudeFt'];
-const TEMP_COL_OPTIONS = ['temperatureC', 'deltaIsaC'];
+const TEMP_COL = 'temperatureC';
 const DIST_COLS = ['takeoffGroundRollM', 'takeoffOver50M', 'landingGroundRollM', 'landingOver50M'];
+const FACTOR_COLS = ['headwindTO%/kt', 'tailwindTO%/kt', 'headwindLDG%/kt', 'tailwindLDG%/kt', 'slopeTO%/%', 'slopeLDG%/%'];
 let mergedPoints = [];
 let foundDistCols = [];
-let tempCol = 'temperatureC'; // detected from CSV
 
 // ── CSV parsing ──
 
@@ -24,20 +24,13 @@ async function readFiles() {
   const all = [];
   for (const file of files) {
     const text = await file.text();
-    const rows = parseCSV(text);
-    // Detect which temperature column is present
-    if (rows.length > 0) {
-      const headers = Object.keys(rows[0]);
-      if (headers.includes('temperatureC')) tempCol = 'temperatureC';
-      else if (headers.includes('deltaIsaC')) tempCol = 'deltaIsaC';
-    }
-    all.push(...rows);
+    all.push(...parseCSV(text));
   }
   return all;
 }
 
 function getKeyCols() {
-  return [...BASE_KEY_COLS, tempCol];
+  return [...BASE_KEY_COLS, TEMP_COL];
 }
 
 function makeKey(row) {
@@ -64,7 +57,7 @@ async function generate() {
       map.set(key, base);
     }
     const merged = map.get(key);
-    for (const c of DIST_COLS) {
+    for (const c of [...DIST_COLS, ...FACTOR_COLS]) {
       if (row[c] && row[c] !== '') merged[c] = row[c];
     }
   }
@@ -73,13 +66,25 @@ async function generate() {
   renderTable();
   status.textContent = `${mergedPoints.length} points, columns: ${foundDistCols.join(', ')}`;
   status.className = 'status';
+  // Auto-fill correction factors from loaded CSVs (first non-zero value wins)
+  const factorMap = {
+    'headwindTO%/kt': 'hwTo', 'tailwindTO%/kt': 'twTo',
+    'headwindLDG%/kt': 'hwLdg', 'tailwindLDG%/kt': 'twLdg',
+    'slopeTO%/%': 'slopeTo', 'slopeLDG%/%': 'slopeLdg',
+  };
+  for (const [csvCol, formId] of Object.entries(factorMap)) {
+    const val = rows.find(r => r[csvCol] && r[csvCol] !== '' && parseFloat(r[csvCol]) !== 0)?.[csvCol];
+    if (val) document.getElementById(formId).value = val;
+  }
+
   document.getElementById('loadStatus').textContent = `Loaded ${rows.length} rows from ${document.getElementById('csvFiles').files.length} file(s).`;
 }
 
 // ── Editable table ──
 
 function getVisibleCols() {
-  return [...getKeyCols(), ...foundDistCols];
+  const factorsPresent = FACTOR_COLS.filter(c => mergedPoints.some(r => r[c] && r[c] !== ''));
+  return [...getKeyCols(), ...foundDistCols, ...factorsPresent];
 }
 
 function renderTable() {
@@ -89,9 +94,12 @@ function renderTable() {
 
   const shortNames = {
     weightKg: 'Wt(kg)', pressureAltitudeFt: 'PA(ft)',
-    temperatureC: 'Temp(°C)', deltaIsaC: 'ΔISA(°C)',
+    temperatureC: 'OAT(°C)',
     takeoffGroundRollM: 'TO GR(m)', takeoffOver50M: 'TO 50(m)',
     landingGroundRollM: 'LDG GR(m)', landingOver50M: 'LDG 50(m)',
+    'headwindTO%/kt': 'HW TO', 'tailwindTO%/kt': 'TW TO',
+    'headwindLDG%/kt': 'HW LDG', 'tailwindLDG%/kt': 'TW LDG',
+    'slopeTO%/%': 'Slope TO', 'slopeLDG%/%': 'Slope LDG',
   };
 
   let html = '<table><thead><tr>';
@@ -108,14 +116,12 @@ function renderTable() {
   html += '</tbody></table>';
   wrap.innerHTML = html;
 
-  // Also update raw view if visible
   const out = document.getElementById('output');
   if (out.style.display !== 'none') out.value = buildCSV();
 }
 
 function editCell(rowIdx, col, val) {
   mergedPoints[rowIdx][col] = val;
-  // Update raw view if visible
   const out = document.getElementById('output');
   if (out.style.display !== 'none') out.value = buildCSV();
 }
@@ -130,9 +136,9 @@ function addRow() {
   const pt = {};
   getKeyCols().forEach(k => pt[k] = '');
   DIST_COLS.forEach(k => pt[k] = '');
+  FACTOR_COLS.forEach(k => pt[k] = '');
   mergedPoints.push(pt);
   renderTable();
-  // Scroll to bottom
   const wrap = document.getElementById('table-wrap');
   wrap.scrollTop = wrap.scrollHeight;
 }
@@ -170,68 +176,44 @@ function buildCSV() {
   const m = getMeta();
   const headers = [
     'aircraftId','registration','name','mtowKg','grassPenaltyPercentIfNoGrassData',
-    'runwayType','weightKg','pressureAltitudeFt', tempCol,
+    'runwayType','weightKg','pressureAltitudeFt','temperatureC',
     'takeoffGroundRollM','takeoffOver50M','landingGroundRollM','landingOver50M',
     'headwindTO%/kt','tailwindTO%/kt','headwindLDG%/kt','tailwindLDG%/kt',
     'slopeTO%/%','slopeLDG%/%'
   ];
+  const formDefaults = {
+    'headwindTO%/kt': m.hwTo, 'tailwindTO%/kt': m.twTo,
+    'headwindLDG%/kt': m.hwLdg, 'tailwindLDG%/kt': m.twLdg,
+    'slopeTO%/%': m.slopeTo, 'slopeLDG%/%': m.slopeLdg,
+  };
   const lines = [headers.join(',')];
   for (const pt of mergedPoints) {
     lines.push([
       m.aircraftId, m.registration, m.name, m.mtowKg, m.grassPenalty,
       m.runwayType,
-      pt.weightKg || '', pt.pressureAltitudeFt || '', pt[tempCol] || '',
+      pt.weightKg || '', pt.pressureAltitudeFt || '', pt.temperatureC || '',
       pt.takeoffGroundRollM || '', pt.takeoffOver50M || '',
       pt.landingGroundRollM || '', pt.landingOver50M || '',
-      m.hwTo, m.twTo, m.hwLdg, m.twLdg,
-      m.slopeTo, m.slopeLdg
+      pt['headwindTO%/kt'] || formDefaults['headwindTO%/kt'],
+      pt['tailwindTO%/kt'] || formDefaults['tailwindTO%/kt'],
+      pt['headwindLDG%/kt'] || formDefaults['headwindLDG%/kt'],
+      pt['tailwindLDG%/kt'] || formDefaults['tailwindLDG%/kt'],
+      pt['slopeTO%/%'] || formDefaults['slopeTO%/%'],
+      pt['slopeLDG%/%'] || formDefaults['slopeLDG%/%'],
     ].join(','));
   }
   return lines.join('\n');
 }
 
-function buildJSON() {
-  const m = getMeta();
-  const obj = [{
-    id: m.aircraftId,
-    registration: m.registration,
-    name: m.name,
-    mtowKg: m.mtowKg,
-    grassPenaltyPercentIfNoGrassData: m.grassPenalty,
-    correctionFactors: {
-      headwindTakeoffPercentPerKt: m.hwTo,
-      tailwindTakeoffPercentPerKt: m.twTo,
-      headwindLandingPercentPerKt: m.hwLdg,
-      tailwindLandingPercentPerKt: m.twLdg,
-    },
-    points: mergedPoints.map(pt => {
-      const p = {
-        runwayType: m.runwayType,
-        weightKg: parseFloat(pt.weightKg) || 0,
-        pressureAltitudeFt: parseFloat(pt.pressureAltitudeFt) || 0,
-        [tempCol]: parseFloat(pt[tempCol]) || 0,
-      };
-      for (const c of DIST_COLS) {
-        if (pt[c] && pt[c] !== '') p[c] = parseFloat(pt[c]);
-      }
-      return p;
-    })
-  }];
-  if (m.slopeTo !== '') obj[0].correctionFactors.slopeTakeoffPercentPerPercent = parseFloat(m.slopeTo);
-  if (m.slopeLdg !== '') obj[0].correctionFactors.slopeLandingPercentPerPercent = parseFloat(m.slopeLdg);
-  return JSON.stringify(obj, null, 2);
-}
 
-function doExport(format) {
+function doExport() {
   if (mergedPoints.length === 0) { document.getElementById('genStatus').textContent = 'Generate first.'; return; }
   const m = getMeta();
-  const content = format === 'json' ? buildJSON() : buildCSV();
-  const mime = format === 'json' ? 'application/json' : 'text/csv';
-  const ext = format === 'json' ? '.json' : '.csv';
-  const blob = new Blob([content], { type: mime });
+  const content = buildCSV();
+  const blob = new Blob([content], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = (m.aircraftId || 'aircraft') + ext;
+  a.download = (m.aircraftId || 'aircraft') + '.csv';
   a.click();
   document.getElementById('output').value = content;
   document.getElementById('output').style.display = '';

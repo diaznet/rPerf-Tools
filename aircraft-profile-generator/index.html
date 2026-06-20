@@ -47,7 +47,7 @@
 
 <div class="card">
   <h2>3. Load Performance CSVs</h2>
-  <p>Load one or more CSVs from the digitizer. Each must have weightKg, pressureAltitudeFt, temperatureC (or deltaIsaC), and one distance column.</p>
+  <p>Load one or more CSVs from the digitizer. Each must have weightKg, pressureAltitudeFt, temperatureC, and one distance column.</p>
   <div class="grid2">
     <div class="field"><label>CSV file(s):</label><input type="file" id="csvFiles" accept=".csv" multiple></div>
   </div>
@@ -67,8 +67,7 @@
   </div>
   <textarea id="output" readonly style="display:none"></textarea>
   <div class="row-btns" style="margin-top:6px">
-    <button class="secondary" onclick="doExport('csv')">Export CSV</button>
-    <button class="secondary" onclick="doExport('json')">Export JSON</button>
+    <button class="secondary" onclick="doExport()">Export CSV</button>
   </div>
 </div>
 
