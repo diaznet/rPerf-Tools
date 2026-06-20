@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>rPerf Aircraft Profile Generator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>rPerf Aircraft Profile Generator</h1>
+<p class="sub">Merge digitized takeoff/landing CSVs into a complete aircraft profile for rPerf.<br>Export as CSV or JSON.</p>
+
+<div class="card">
+  <h2>1. Aircraft Info</h2>
+  <div class="grid2">
+    <div class="field"><label>Aircraft ID:</label><input type="text" id="aircraftId" value="sample-dr40" placeholder="e.g. sample-dr40"></div>
+    <div class="field"><label>Registration:</label><input type="text" id="registration" value="F-DR40" placeholder="e.g. F-ABCD"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>Name:</label><input type="text" id="acName" value="DR400 140b" placeholder="e.g. DR400 140b"></div>
+    <div class="field"><label>MTOW (kg):</label><input type="number" id="mtowKg" value="1000"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>Grass penalty % (if no grass data):</label><input type="number" id="grassPenalty" value="15"></div>
+    <div class="field"><label>Runway type for this data:</label>
+      <select id="runwayType"><option value="concrete">Concrete</option><option value="grass">Grass</option></select>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>2. Correction Factors</h2>
+  <p>Wind: % distance change per knot. Slope: % distance change per % slope.</p>
+  <div class="grid2">
+    <div class="field"><label>Headwind TO (%/kt):</label><input type="number" id="hwTo" value="0" step="0.1"></div>
+    <div class="field"><label>Tailwind TO (%/kt):</label><input type="number" id="twTo" value="0" step="0.1"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>Headwind LDG (%/kt):</label><input type="number" id="hwLdg" value="0" step="0.1"></div>
+    <div class="field"><label>Tailwind LDG (%/kt):</label><input type="number" id="twLdg" value="0" step="0.1"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>Slope TO (%/%):</label><input type="number" id="slopeTo" value="" step="0.1" placeholder="optional"></div>
+    <div class="field"><label>Slope LDG (%/%):</label><input type="number" id="slopeLdg" value="" step="0.1" placeholder="optional"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>3. Load Performance CSVs</h2>
+  <p>Load one or more CSVs from the digitizer. Each must have weightKg, pressureAltitudeFt, temperatureC, and one distance column.</p>
+  <div class="grid2">
+    <div class="field"><label>CSV file(s):</label><input type="file" id="csvFiles" accept=".csv" multiple></div>
+  </div>
+  <p class="status" id="loadStatus"></p>
+</div>
+
+<div class="card">
+  <h2>4. Generate, Edit &amp; Export</h2>
+  <div class="row-btns">
+    <button onclick="generate()">Generate</button>
+  </div>
+  <p class="status" id="genStatus"></p>
+  <div id="table-wrap"></div>
+  <div class="row-btns" style="margin-top:6px">
+    <button class="secondary" onclick="addRow()">+ Add Row</button>
+    <button class="secondary" onclick="toggleRaw()">Toggle Raw View</button>
+  </div>
+  <textarea id="output" readonly style="display:none"></textarea>
+  <div class="row-btns" style="margin-top:6px">
+    <button class="secondary" onclick="doExport()">Export CSV</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

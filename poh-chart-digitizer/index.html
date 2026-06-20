@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>POH Chart Digitizer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="sidebar">
+  <h2>POH Chart Digitizer</h2>
+  <div style="font-size: 11px; color: #888; margin-bottom: 8px; line-height: 1.4;">
+    <strong>Controls:</strong> Scroll to pan • Ctrl+Scroll to zoom • Hold <kbd style="background:#333;padding:1px 4px;border-radius:2px;color:#0ff;">Z</kbd> for magnifier<br>
+    <strong>Crosshair:</strong> Enable to align rotation with chart grid lines<br>
+    <strong>Workflow:</strong> Load image → adjust rotation → calibrate Y then X axes → trace lines → compute
+  </div>
+
+  <div class="step active" id="step-load">
+    <h3>1. Load Chart Image</h3>
+    <input type="file" id="fileInput" accept="image/*">
+    <div class="row" style="margin-top: 8px; flex-wrap: wrap;">
+      <label>Rotation:</label>
+      <input type="range" id="rotation-slider" min="-5" max="5" step="0.01" value="0" oninput="applyRotation(parseFloat(this.value))" style="flex: 1; min-width: 100px;">
+      <input type="text" id="rotation-val" value="0.00" onchange="var v=parseFloat(this.value)||0; document.getElementById('rotation-slider').value=v; applyRotation(v);" style="flex: none; width: 55px; font-size: 11px; text-align: right;">
+      <button class="secondary" onclick="document.getElementById('rotation-slider').value=0; applyRotation(0);" style="flex: none; padding: 2px 6px; font-size: 11px;">Reset</button>
+    </div>
+    <div class="row" style="margin-top: 4px;">
+      <button class="secondary" id="crosshair-btn" onclick="toggleCrosshair()" style="flex: 6; padding: 2px 6px; font-size: 11px;">Crosshair</button>
+      <input type="number" id="crosshair-width" min="1" max="10" step="1" value="2" oninput="crosshairWidth = parseFloat(this.value) || 2" style="flex: 4; min-width: 0; font-size: 11px;" title="Crosshair thickness (px)">
+    </div>
+  </div>
+
+  <div class="step" id="step-cal-y">
+    <h3>2. Calibrate Distance Axis (Y)</h3>
+    <p>Click one point per distance value on any horizontal grid line. This Y calibration is shared across all sections.</p>
+    <button class="secondary" onclick="startYCalibration()">Start Calibration</button>
+    <label>Y points (m):</label>
+    <div id="cal-y-pts"></div>
+    <p id="cal-y-status" style="color:#0f0;"></p>
+  </div>
+
+  <div class="step" id="step-cal-right">
+    <h3>3. Calibrate Gross Weight Section (X only)</h3>
+    <p>Click X points on the weight axis.</p>
+    <button class="secondary" onclick="startCalibration('right')">Start Calibration</button>
+    <label>X points (kg):</label>
+    <div id="cal-right-x-pts"></div>
+    <p id="cal-right-status" style="color:#0f0;"></p>
+  </div>
+
+  <div class="step" id="step-cal-left">
+    <h3>4. Calibrate Outside Air Temperature Section (X only)</h3>
+    <p>Click X points on the temperature axis.</p>
+    <button class="secondary" onclick="startCalibration('left')">Start Calibration</button>
+    <label>X points (°C):</label>
+    <div id="cal-left-x-pts"></div>
+    <p id="cal-left-status" style="color:#0f0;"></p>
+  </div>
+
+  <div class="step step-optional" id="step-cal-headwind">
+    <h3>5. Calibrate Wind Section (X only) <span class="optional-badge">optional</span></h3>
+    <p>Skip if your chart has no wind section. Negative = tailwind, positive = headwind.</p>
+    <button class="secondary" onclick="startCalibration('headwind')">Start Calibration</button>
+    <button class="secondary btn-reset" onclick="resetCalibration('headwind')">Reset</button>
+    <label>X points (kt):</label>
+    <div id="cal-headwind-x-pts"></div>
+    <p id="cal-headwind-status" style="color:#0f0;"></p>
+  </div>
+
+  <div class="step step-optional" id="step-cal-obstacle">
+    <h3>6. Calibrate Obstacle Section (X only) <span class="optional-badge">optional</span></h3>
+    <p>Skip if your chart has no obstacle height section.</p>
+    <button class="secondary" onclick="startCalibration('obstacle')">Start Calibration</button>
+    <button class="secondary btn-reset" onclick="resetCalibration('obstacle')">Reset</button>
+    <label>X points (m):</label>
+    <div id="cal-obstacle-x-pts"></div>
+    <p id="cal-obstacle-status" style="color:#0f0;"></p>
+  </div>
+
+  <div class="step" id="step-trace-left">
+    <h3>7. Trace Altitude Lines — Outside Air Temperature</h3>
+    <p>Select an altitude, click along its line from left to right.</p>
+    <div id="alt-list-config"></div>
+    <div class="row">
+      <button class="secondary" id="btn-trace-left" onclick="startTracing('left')">Trace</button>
+      <button class="secondary" id="btn-undo-left" onclick="undoLastPoint()" disabled>Undo</button>
+      <button class="secondary" id="btn-done-left" onclick="finishLine()" disabled>Done</button>
+    </div>
+    <div class="line-list" id="left-lines"></div>
+  </div>
+
+  <div class="step" id="step-trace-right">
+    <h3>8. Trace Reference Curves — Gross Weight</h3>
+    <p>Trace the guide curves on the gross weight section.</p>
+    <div id="right-curve-config"></div>
+    <div class="row">
+      <button class="secondary" id="btn-trace-right" onclick="startTracing('right')">Trace</button>
+      <button class="secondary" id="btn-undo-right" onclick="undoLastPoint()" disabled>Undo</button>
+      <button class="secondary" id="btn-done-right" onclick="finishLine()" disabled>Done</button>
+    </div>
+    <div class="line-list" id="right-lines"></div>
+  </div>
+
+  <div class="step step-optional" id="step-trace-headwind">
+    <h3>9. Trace Reference Curves — Wind <span class="optional-badge">optional</span></h3>
+    <p>Skip if not calibrated. Trace the guide curves on the wind section.</p>
+    <div id="headwind-curve-config"></div>
+    <div class="row">
+      <button class="secondary" id="btn-trace-headwind" onclick="startTracing('headwind')">Trace</button>
+      <button class="secondary" id="btn-undo-headwind" onclick="undoLastPoint()" disabled>Undo</button>
+      <button class="secondary" id="btn-done-headwind" onclick="finishLine()" disabled>Done</button>
+    </div>
+    <div class="line-list" id="headwind-lines"></div>
+  </div>
+
+  <div class="step step-optional" id="step-trace-obstacle">
+    <h3>10. Trace Reference Curves — Obstacle <span class="optional-badge">optional</span></h3>
+    <p>Skip if not calibrated. Trace the guide curves on the obstacle height section.</p>
+    <div id="obstacle-curve-config"></div>
+    <div class="row">
+      <button class="secondary" id="btn-trace-obstacle" onclick="startTracing('obstacle')">Trace</button>
+      <button class="secondary" id="btn-undo-obstacle" onclick="undoLastPoint()" disabled>Undo</button>
+      <button class="secondary" id="btn-done-obstacle" onclick="finishLine()" disabled>Done</button>
+    </div>
+    <div class="line-list" id="obstacle-lines"></div>
+  </div>
+
+  <div class="step" id="step-export">
+    <h3>11. Compute &amp; Export</h3>
+    <p>For each temp+altitude, crosses through each section and reads distance.</p>
+    <div class="row"><label>Temp from (°C):</label><input type="number" id="temp-from" value="-20"><label>to:</label><input type="number" id="temp-to" value="40"><label>step:</label><input type="number" id="temp-step" value="5"></div>
+    <div class="row"><label>Weights (kg, comma-sep):</label><input type="text" id="weights" value="" placeholder="Auto-filled from calibration"></div>
+    <div class="row" style="flex-wrap: wrap;"><label>Wind samples (kt, comma-sep):</label><input type="text" id="wind-samples" value="-10,-5,5,10,15,20"><br><span class="hint" id="headwind-hint" style="width: 100%;">Negative = tailwind. Used to compute avg correction factor.</span></div>
+    <div class="row"><label>Chart type:</label>
+      <select id="chart-type"><option value="takeoff">Takeoff</option><option value="landing">Landing</option></select>
+    </div>
+    <div class="row" id="dist-type-row"><label>Distance type:</label>
+      <select id="dist-type"><option value="groundroll">Ground Roll</option><option value="over50">Over 50ft/15m</option></select>
+      <span class="hint" id="dist-type-hint">Hidden when obstacle section is active (both computed automatically)</span>
+    </div>
+    <button onclick="computeGrid()">Compute Grid</button>
+    <button class="secondary" onclick="exportCSV()">Export CSV</button>
+    <button class="secondary" onclick="saveProject()">Save Project</button>
+    <button class="secondary" style="margin-top:4px" onclick="document.getElementById('loadProject').click()">Load Project</button>
+    <input type="file" id="loadProject" accept=".json" style="display:none" onchange="loadProject(event)">
+    <textarea id="output" readonly></textarea>
+  </div>
+</div>
+
+<div id="resize-handle"></div>
+
+<div id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+</div>
+<div id="info">Load an image to begin.</div>
+
+<script src="calibration.js"></script>
+<script src="tracing.js"></script>
+<script src="compute.js"></script>
+<script src="project.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #eee; display: flex; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar ── */
+#sidebar {
+  width: 420px; min-width: 260px; max-width: 600px;
+  padding: 12px;
+  overflow-y: auto; overflow-x: hidden;
+  background: #16213e;
+  display: flex; flex-direction: column; gap: 8px;
+  flex-shrink: 0;
+}
+#sidebar h2 { font-size: 14px; color: #0ff; margin-top: 8px; }
+#sidebar label { font-size: 12px; color: #aaa; }
+
+/* Step boxes: never shrink, never clip */
+#sidebar .step {
+  padding: 8px; border: 1px solid #333; border-radius: 6px;
+  background: #1a1a3e;
+  flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+#sidebar .step.active { border-color: #0ff; }
+#sidebar .step h3 { font-size: 13px; }
+#sidebar .step p { font-size: 11px; color: #888; }
+
+/* All inputs/selects/buttons/textareas inside steps: full width by default */
+#sidebar .step input,
+#sidebar .step select,
+#sidebar .step button,
+#sidebar .step textarea {
+  font-size: 13px; padding: 6px 8px;
+  border: 1px solid #444; border-radius: 4px;
+  background: #0f3460; color: #eee;
+  width: 100%;
+}
+#sidebar .step button { cursor: pointer; background: #e94560; border: none; font-weight: bold; }
+#sidebar .step button:hover { background: #ff6b81; }
+#sidebar .step button.secondary { background: #0f3460; border: 1px solid #555; }
+#sidebar .step button.secondary:hover { background: #1a4a8a; }
+#sidebar .step button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Row: horizontal flex, items shrink to fit ── */
+.row {
+  display: flex; gap: 4px; align-items: center;
+}
+.row > input, .row > select { flex: 1; min-width: 0; width: auto; }
+.row > button { flex: 1; min-width: 0; width: auto; }
+.row > label { flex-shrink: 0; white-space: nowrap; }
+
+/* ── Calibration point rows ── */
+.cal-pt-row {
+  display: flex; gap: 4px; align-items: center;
+}
+.cal-pt-row input { flex: 1; min-width: 0; width: auto; }
+.cal-pt-row span { font-size: 11px; color: #888; flex-shrink: 0; }
+.cal-pt-row button {
+  flex-shrink: 0; width: auto !important;
+  padding: 2px 6px !important; font-size: 10px !important;
+}
+.cal-add-btn {
+  width: auto !important;
+  padding: 3px 10px !important; font-size: 11px !important;
+  align-self: flex-start;
+}
+
+/* ── Resize handle ── */
+#resize-handle { width: 5px; cursor: col-resize; background: #333; flex-shrink: 0; }
+#resize-handle:hover, #resize-handle.dragging { background: #0ff; }
+
+/* ── Canvas ── */
+#canvas-wrap { flex: 1; position: relative; overflow: scroll; background: #111; min-width: 0; }
+canvas { cursor: crosshair; display: block; }
+
+/* ── Bottom info bar ── */
+#info {
+  position: fixed; bottom: 0; left: 345px; right: 0;
+  background: #16213e; padding: 6px 12px;
+  font-size: 12px; color: #aaa; border-top: 1px solid #333;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#info .next-click { color: #0ff; font-weight: bold; }
+
+/* ── Traced line list ── */
+.line-list { max-height: 150px; overflow-y: auto; font-size: 11px; }
+.line-item { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px; border-radius: 3px; gap: 4px; }
+.line-item:hover { background: #0f3460; }
+.line-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.line-item button { flex-shrink: 0; width: auto !important; padding: 2px 6px !important; font-size: 10px !important; }
+.color-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+/* ── Optional section styling ── */
+.step-optional { border-color: #333; opacity: 0.7; }
+.step-optional:hover, .step-optional:focus-within { opacity: 1; }
+.optional-badge { font-size: 10px; color: #888; font-weight: normal; background: #333; padding: 1px 6px; border-radius: 8px; margin-left: 4px; }
+.btn-reset { width: auto !important; padding: 4px 10px !important; font-size: 11px !important; background: #333 !important; margin-left: 4px; }
+.hint { font-size: 10px; color: #666; flex-shrink: 0; }
+
+/* ── Output textarea ── */
+#output { height: 150px; font-family: monospace; font-size: 11px; background: #111; color: #0f0; resize: vertical; }
+
+/* ── Tracing active state ── */
+.btn-tracing { background: #e94560 !important; border-color: #e94560 !important; color: #fff !important; opacity: 0.6; cursor: not-allowed !important; }
+.btn-done-ready { background: #22c55e !important; border-color: #22c55e !important; color: #fff !important; }
+.btn-done-ready:hover { background: #16a34a !important; }
+
+/* ── Curve config rows ── */
+.curve-cfg-row { display: flex; gap: 4px; align-items: center; margin-bottom: 2px; }
+.curve-cfg-row input { flex: 1; min-width: 0; width: auto; }
+.curve-cfg-row button { flex-shrink: 0; width: auto !important; padding: 2px 6px !important; font-size: 10px !important; }
