@@ -1,6 +1,6 @@
 # rPerf Tools
 
-Tools for creating aircraft performance profiles for the rPerf app.
+Tools for creating aircraft performance profiles for the [rPerf](https://github.com/diaznet/rPerf) app.
 
 ![Example: digitizing a DA20 takeoff chart](docs/images/example.png)
 
